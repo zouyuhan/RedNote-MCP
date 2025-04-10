@@ -1,5 +1,7 @@
 # RedNote MCP
 
+[English](./docs/README.en.md) | 简体中文
+
 小红书内容访问的 Model Context Protocol 实现。
 
 ## 功能特性
@@ -72,7 +74,23 @@ npm run dev -- init
 - `command`: 可以是全局安装后的 `rednote-mcp` 命令，或使用 `npx` 直接运行
 - `args`: 必须包含 `--stdio` 参数以支持 Cursor 的通信方式
 
-## 开发
+## 开发调试
+
+### 使用 MCP Inspector 进行调试
+
+MCP Inspector 是一个用于调试 MCP 服务器的工具，可以帮助开发者检查和验证 MCP 服务器的行为。使用以下命令启动：
+
+```bash
+npx @modelcontextprotocol/inspector npx rednote-mcp --stdio
+```
+
+这个命令会：
+1. 启动 MCP Inspector 工具
+2. 通过 Inspector 运行 rednote-mcp 服务
+3. 提供一个交互式界面来检查请求和响应
+4. 帮助调试和验证 MCP 协议的实现
+
+### 开发流程
 
 ```bash
 # 构建项目
