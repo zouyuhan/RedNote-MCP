@@ -1,8 +1,37 @@
 # RedNote MCP
 
-[English](./docs/README.en.md) | 简体中文
+[English](https://github.com/iFurySt/RedNote-MCP/blob/main/docs/README.en.md) | 简体中文
 
 小红书内容访问的 Model Context Protocol 实现。
+
+## 快速开始
+
+### NPM 全局安装
+
+```bash
+# 全局安装
+npm install -g rednote-mcp
+
+# 初始化登录
+rednote-mcp init
+```
+
+### 从源码安装
+
+```bash
+# 克隆项目
+git clone https://github.com/ifuryst/rednote-mcp.git
+cd rednote-mcp
+
+# 安装依赖
+npm install
+
+# 全局安装（可选，方便命令行调用）
+npm install -g .
+
+# 初始化登录
+npm run dev -- init
+```
 
 ## 功能特性
 
@@ -12,20 +41,6 @@
 - 通过 URL 访问评论内容
 - 命令行初始化工具
 
-## 安装
-
-```bash
-# 克隆项目
-git clone https://github.com/yourusername/rednote-mcp.git
-cd rednote-mcp
-
-# 安装依赖
-npm install
-
-# 全局安装（可选，方便命令行调用）
-npm install -g .
-```
-
 ## 使用说明
 
 ### 1. 初始化登录
@@ -33,6 +48,8 @@ npm install -g .
 首次使用需要先进行登录初始化：
 
 ```bash
+rednote-mcp init
+# 或者如果是从源码安装：
 npm run dev -- init
 ```
 
@@ -74,7 +91,28 @@ npm run dev -- init
 - `command`: 可以是全局安装后的 `rednote-mcp` 命令，或使用 `npx` 直接运行
 - `args`: 必须包含 `--stdio` 参数以支持 Cursor 的通信方式
 
-## 开发调试
+## 开发指南
+
+### 环境要求
+
+- Node.js >= 16
+- npm >= 7
+
+### 开发流程
+
+```bash
+# 安装依赖
+npm install
+
+# 构建项目
+npm run build
+
+# 开发模式运行
+npm run dev
+
+# 运行测试
+npm test
+```
 
 ### 使用 MCP Inspector 进行调试
 
@@ -90,19 +128,6 @@ npx @modelcontextprotocol/inspector npx rednote-mcp --stdio
 3. 提供一个交互式界面来检查请求和响应
 4. 帮助调试和验证 MCP 协议的实现
 
-### 开发流程
-
-```bash
-# 构建项目
-npm run build
-
-# 开发模式运行
-npm run dev
-
-# 运行测试
-npm test
-```
-
 ## 配置
 
 在项目根目录创建 `.env` 文件，配置以下变量：
@@ -116,6 +141,24 @@ PORT=3000
 HOST=localhost
 ```
 
+## 项目结构
+
+```
+rednote-mcp/
+├── src/              # 源代码目录
+│   ├── auth/         # 认证相关
+│   │   ├── authManager.ts
+│   │   └── cookieManager.ts
+│   ├── cli.ts        # 命令行接口
+│   └── index.ts      # 主入口
+├── docs/             # 文档目录
+│   └── README.en.md  # 英文文档
+├── tests/            # 测试目录
+├── .env              # 环境配置
+├── package.json      # 项目配置
+└── tsconfig.json     # TypeScript 配置
+```
+
 ## 注意事项
 
 1. 首次使用必须执行 `init` 命令进行登录
@@ -123,17 +166,14 @@ HOST=localhost
 3. 建议定期更新 Cookie，避免失效
 4. 确保已正确安装 Node.js 环境
 
-## 项目结构
+## 贡献指南
 
-```
-rednote-mcp/
-├── src/
-│   ├── auth/           # 认证相关
-│   │   ├── authManager.ts
-│   │   └── cookieManager.ts
-│   ├── cli.ts          # 命令行接口
-│   └── index.ts        # 主入口
-├── .env                # 环境配置
-├── package.json        # 项目配置
-└── tsconfig.json       # TypeScript 配置
-``` 
+1. Fork 本仓库
+2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交你的改动 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启一个 Pull Request
+
+## 许可证
+
+MIT License - 详见 [LICENSE](LICENSE) 文件 

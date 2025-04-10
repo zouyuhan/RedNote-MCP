@@ -1,8 +1,37 @@
 # RedNote MCP
 
-[简体中文](../README.md) | English
+[简体中文](https://github.com/iFurySt/RedNote-MCP) | English
 
 A Model Context Protocol implementation for accessing Xiaohongshu (RED) content.
+
+## Quick Start
+
+### NPM Global Installation
+
+```bash
+# Install globally
+npm install -g rednote-mcp
+
+# Initialize login
+rednote-mcp init
+```
+
+### Install from Source
+
+```bash
+# Clone the project
+git clone https://github.com/ifuryst/rednote-mcp.git
+cd rednote-mcp
+
+# Install dependencies
+npm install
+
+# Global installation (optional, for convenient CLI usage)
+npm install -g .
+
+# Initialize login
+npm run dev -- init
+```
 
 ## Features
 
@@ -12,20 +41,6 @@ A Model Context Protocol implementation for accessing Xiaohongshu (RED) content.
 - Access comments via URL
 - Command-line initialization tool
 
-## Installation
-
-```bash
-# Clone the project
-git clone https://github.com/yourusername/rednote-mcp.git
-cd rednote-mcp
-
-# Install dependencies
-npm install
-
-# Global installation (optional, for convenient CLI usage)
-npm install -g .
-```
-
 ## Usage
 
 ### 1. Initialize Login
@@ -33,6 +48,8 @@ npm install -g .
 First-time users need to initialize login:
 
 ```bash
+rednote-mcp init
+# Or if installed from source:
 npm run dev -- init
 ```
 
@@ -74,7 +91,28 @@ Configuration notes:
 - `command`: Can be either the globally installed `rednote-mcp` command or use `npx` directly
 - `args`: Must include `--stdio` parameter to support Cursor's communication method
 
-## Development and Debugging
+## Development Guide
+
+### Requirements
+
+- Node.js >= 16
+- npm >= 7
+
+### Development Workflow
+
+```bash
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Run in development mode
+npm run dev
+
+# Run tests
+npm test
+```
 
 ### Using MCP Inspector for Debugging
 
@@ -90,19 +128,6 @@ This command will:
 3. Provide an interactive interface for inspecting requests and responses
 4. Help debug and verify MCP protocol implementation
 
-### Development Workflow
-
-```bash
-# Build the project
-npm run build
-
-# Run in development mode
-npm run dev
-
-# Run tests
-npm test
-```
-
 ## Configuration
 
 Create a `.env` file in the project root directory with the following variables:
@@ -116,6 +141,24 @@ PORT=3000
 HOST=localhost
 ```
 
+## Project Structure
+
+```
+rednote-mcp/
+├── src/              # Source code directory
+│   ├── auth/         # Authentication related
+│   │   ├── authManager.ts
+│   │   └── cookieManager.ts
+│   ├── cli.ts        # CLI interface
+│   └── index.ts      # Main entry
+├── docs/             # Documentation directory
+│   └── README.en.md  # English documentation
+├── tests/            # Test directory
+├── .env              # Environment configuration
+├── package.json      # Project configuration
+└── tsconfig.json     # TypeScript configuration
+```
+
 ## Important Notes
 
 1. Must execute `init` command for first-time login
@@ -123,17 +166,14 @@ HOST=localhost
 3. Recommended to update cookies periodically to avoid expiration
 4. Ensure Node.js environment is properly installed
 
-## Project Structure
+## Contributing
 
-```
-rednote-mcp/
-├── src/
-│   ├── auth/           # Authentication related
-│   │   ├── authManager.ts
-│   │   └── cookieManager.ts
-│   ├── cli.ts          # CLI interface
-│   └── index.ts        # Main entry
-├── .env                # Environment configuration
-├── package.json        # Project configuration
-└── tsconfig.json       # TypeScript configuration
-``` 
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+MIT License - see the [LICENSE](LICENSE) file for details 
