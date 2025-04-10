@@ -2,7 +2,9 @@
 
 [简体中文](https://github.com/iFurySt/RedNote-MCP) | English
 
-A Model Context Protocol implementation for accessing Xiaohongshu (RED) content.
+A Model Context Protocol implementation for accessing Xiaohongshu (RedNote) content.
+
+https://github.com/user-attachments/assets/06b2c67f-d9ed-4a30-8f1d-9743f3edaa3a
 
 ## Quick Start
 

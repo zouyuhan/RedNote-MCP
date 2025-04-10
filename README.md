@@ -4,6 +4,8 @@
 
 小红书内容访问的 Model Context Protocol 实现。
 
+https://github.com/user-attachments/assets/06b2c67f-d9ed-4a30-8f1d-9743f3edaa3a
+
 ## 快速开始
 
 ### NPM 全局安装
