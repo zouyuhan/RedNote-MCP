@@ -1,6 +1,8 @@
 # RedNote MCP
 
-[简体中文](https://github.com/iFurySt/RedNote-MCP) | English
+[![English](https://img.shields.io/badge/English-Click-yellow)](README.en.md)
+[![简体中文](https://img.shields.io/badge/简体中文-点击查看-orange)](../README.md)
+[![npm](https://img.shields.io/npm/v/rednote-mcp)](https://www.npmjs.com/package/rednote-mcp)
 
 A friendly tool to help you access and interact with Xiaohongshu (RedNote) content through Model Context Protocol.
 
