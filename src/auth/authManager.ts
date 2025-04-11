@@ -105,7 +105,23 @@ export class AuthManager {
           timeout: 30000
         });
 
-        // Wait for login dialog
+        // Check if already logged in
+        const userSidebar = await this.page.$('.user.side-bar-component .channel');
+        if (userSidebar) {
+          const isLoggedIn = await this.page.evaluate(() => {
+            const sidebarUser = document.querySelector('.user.side-bar-component .channel');
+            return sidebarUser?.textContent?.trim() === '我';
+          });
+          
+          if (isLoggedIn) {
+            // Already logged in, save cookies and return
+            const newCookies = await this.context.cookies();
+            await this.cookieManager.saveCookies(newCookies);
+            return;
+          }
+        }
+
+        // Wait for login dialog if not logged in
         await this.page.waitForSelector('.login-container', {
           timeout: 10000
         });
