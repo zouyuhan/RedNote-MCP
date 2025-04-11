@@ -10,6 +10,11 @@ https://github.com/user-attachments/assets/06b2c67f-d9ed-4a30-8f1d-9743f3edaa3a
 
 ## 快速开始
 
+开始前确保安装了 [playwright](https://github.com/microsoft/playwright) 环境：
+```bash
+npx playwright install
+```
+
 ### NPM 全局安装
 
 ```bash

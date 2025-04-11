@@ -10,6 +10,12 @@ https://github.com/user-attachments/assets/06b2c67f-d9ed-4a30-8f1d-9743f3edaa3a
 
 ## Getting Started
 
+Before getting started, make sure the [playwright](https://github.com/microsoft/playwright) is installed:
+
+```bash
+npx playwright install
+```
+
 ### Install via NPM
 
 The easiest way to get started is to install RedNote MCP globally:
