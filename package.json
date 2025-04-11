@@ -1,7 +1,7 @@
 {
   "name": "rednote-mcp",
-  "version": "0.1.4",
-  "description": "RedNote MCP implementation for Model Context Protocol",
+  "version": "0.1.5",
+  "description": "A friendly tool to help you access and interact with Xiaohongshu (RedNote) content through Model Context Protocol.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -43,7 +43,7 @@
     "cursor",
     "ai"
   ],
-  "author": "iFurySt",
+  "author": "Leo",
   "license": "MIT",
   "repository": {
     "type": "git",

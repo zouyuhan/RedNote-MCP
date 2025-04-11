@@ -2,68 +2,76 @@
 
 [简体中文](https://github.com/iFurySt/RedNote-MCP) | English
 
-A Model Context Protocol implementation for accessing Xiaohongshu (RedNote) content.
+A friendly tool to help you access and interact with Xiaohongshu (RedNote) content through Model Context Protocol.
 
 https://github.com/user-attachments/assets/06b2c67f-d9ed-4a30-8f1d-9743f3edaa3a
 
-## Quick Start
+## Getting Started
 
-### NPM Global Installation
+### Install via NPM
+
+The easiest way to get started is to install RedNote MCP globally:
 
 ```bash
-# Install globally
+# Install the package globally
 npm install -g rednote-mcp
 
-# Initialize login
-rednote-mcp init
+# Set up your account
+rednote-mcp init   # This will save your login info to ~/.mcp/rednote/cookies.json
 ```
 
-### Install from Source
+### Build from Source
+
+If you prefer to build from source:
 
 ```bash
-# Clone the project
+# Get the code
 git clone https://github.com/ifuryst/rednote-mcp.git
 cd rednote-mcp
 
-# Install dependencies
+# Set up the project
 npm install
 
-# Global installation (optional, for convenient CLI usage)
+# Optional: Install globally for easier CLI access
 npm install -g .
 
-# Initialize login
+# Or just run it directly for initial setup
 npm run dev -- init
 ```
 
-## Features
+## What's Included
 
-- Authentication management (with Cookie persistence)
-- Note search by keywords
-- Access note content via URL
-- Access comments via URL
-- Command-line initialization tool
+Here's what you can do with RedNote MCP:
+- Log in and stay logged in (with automatic cookie management)
+- Search through notes using keywords
+- Use our handy command-line tools
 
-## Usage
+Coming soon:
+- [ ] View note content using URLs
+- [ ] Access comment sections using URLs
 
-### 1. Initialize Login
+## How to Use
 
-First-time users need to initialize login:
+### First Time Setup
+
+Before you start, you'll need to log in. You have a few options:
 
 ```bash
 rednote-mcp init
-# Or if installed from source:
+# If you installed from source:
 npm run dev -- init
+# Or simply use the login option in mcp-client
 ```
 
-After executing this command:
-1. A browser window will open automatically
-2. You'll be redirected to the Xiaohongshu login page
-3. Complete the login process manually
-4. After successful login, cookies will be automatically saved to `cookies.json`
+Here's what happens:
+1. Your browser will open automatically
+2. You'll see the Xiaohongshu login page
+3. Log in like you normally would
+4. Once you're in, we'll save your login info to `~/.mcp/rednote/cookies.json`
 
-### 2. Configure MCP Server in Cursor
+### Setting up in Cursor
 
-Add the following configuration to Cursor's settings.json:
+To use RedNote MCP in Cursor, add this to your settings.json:
 
 ```json
 {
@@ -76,7 +84,7 @@ Add the following configuration to Cursor's settings.json:
 }
 ```
 
-Or use npx method:
+Or if you prefer using npx:
 
 ```json
 {
@@ -89,21 +97,21 @@ Or use npx method:
 }
 ```
 
-Configuration notes:
-- `command`: Can be either the globally installed `rednote-mcp` command or use `npx` directly
-- `args`: Must include `--stdio` parameter to support Cursor's communication method
+A few things to note:
+- You can use either the global command (`rednote-mcp`) or `npx`
+- Make sure to include `--stdio` - it's needed for Cursor communication
 
-## Development Guide
+## Development
 
-### Requirements
+### What You'll Need
 
-- Node.js >= 16
-- npm >= 7
+- Node.js version 16 or newer
+- npm version 7 or newer
 
-### Development Workflow
+### Development Commands
 
 ```bash
-# Install dependencies
+# Get everything installed
 npm install
 
 # Build the project
@@ -112,70 +120,41 @@ npm run build
 # Run in development mode
 npm run dev
 
-# Run tests
+# Run the test suite
 npm test
 ```
 
-### Using MCP Inspector for Debugging
+### Debugging with MCP Inspector
 
-MCP Inspector is a tool for debugging MCP servers that helps developers inspect and verify MCP server behavior. Start it with:
+Need to debug? MCP Inspector is your friend:
 
 ```bash
 npx @modelcontextprotocol/inspector npx rednote-mcp --stdio
 ```
 
-This command will:
-1. Launch the MCP Inspector tool
-2. Run the rednote-mcp service through Inspector
-3. Provide an interactive interface for inspecting requests and responses
-4. Help debug and verify MCP protocol implementation
+This will:
+1. Start up the Inspector
+2. Run RedNote MCP through it
+3. Give you a nice interface to watch requests and responses
+4. Help you understand what's happening under the hood
 
-## Configuration
+## Important Things to Know
 
-Create a `.env` file in the project root directory with the following variables:
+1. Don't forget to run `init` when you first start
+2. Keep your cookie file safe - it has your login info
+3. Your login might expire occasionally - just log in again when it does
+4. Make sure you have Node.js set up properly
 
-```
-# Cookie storage path
-COOKIE_STORAGE_PATH=./cookies.json
+## Want to Contribute?
 
-# MCP server configuration
-PORT=3000
-HOST=localhost
-```
+We'd love your help! Here's how:
 
-## Project Structure
-
-```
-rednote-mcp/
-├── src/              # Source code directory
-│   ├── auth/         # Authentication related
-│   │   ├── authManager.ts
-│   │   └── cookieManager.ts
-│   ├── cli.ts        # CLI interface
-│   └── index.ts      # Main entry
-├── docs/             # Documentation directory
-│   └── README.en.md  # English documentation
-├── tests/            # Test directory
-├── .env              # Environment configuration
-├── package.json      # Project configuration
-└── tsconfig.json     # TypeScript configuration
-```
-
-## Important Notes
-
-1. Must execute `init` command for first-time login
-2. Cookie file contains sensitive information, keep it secure
-3. Recommended to update cookies periodically to avoid expiration
-4. Ensure Node.js environment is properly installed
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+1. Fork this repo
+2. Create a branch for your feature (`git checkout -b feature/CoolNewThing`)
+3. Make your changes (`git commit -m 'Added this cool new thing'`)
+4. Push it up (`git push origin feature/CoolNewThing`)
 5. Open a Pull Request
 
 ## License
 
-MIT License - see the [LICENSE](LICENSE) file for details 
+This project is under the MIT License - check out the [LICENSE](LICENSE) file for the details 

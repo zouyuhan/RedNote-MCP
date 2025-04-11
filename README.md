@@ -2,7 +2,7 @@
 
 [English](https://github.com/iFurySt/RedNote-MCP/blob/main/docs/README.en.md) | 简体中文
 
-小红书内容访问的 Model Context Protocol 实现。
+小红书内容访问的MCP服务
 
 https://github.com/user-attachments/assets/06b2c67f-d9ed-4a30-8f1d-9743f3edaa3a
 
@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/06b2c67f-d9ed-4a30-8f1d-9743f3edaa3a
 # 全局安装
 npm install -g rednote-mcp
 
-# 初始化登录
+# 初始化登录，会自动记录cookie到 ~/.mcp/rednote/cookies.json
 rednote-mcp init
 ```
 
@@ -31,7 +31,7 @@ npm install
 # 全局安装（可选，方便命令行调用）
 npm install -g .
 
-# 初始化登录
+# 或者直接运行，如初始化登录
 npm run dev -- init
 ```
 
@@ -39,9 +39,9 @@ npm run dev -- init
 
 - 认证管理（支持 Cookie 持久化）
 - 关键词搜索笔记
-- 通过 URL 访问笔记内容
-- 通过 URL 访问评论内容
 - 命令行初始化工具
+- [ ] 通过 URL 访问笔记内容
+- [ ] 通过 URL 访问评论内容
 
 ## 使用说明
 
@@ -51,15 +51,16 @@ npm run dev -- init
 
 ```bash
 rednote-mcp init
-# 或者如果是从源码安装：
+# 或者直接从源码run
 npm run dev -- init
+# 或者mcp-client里选择login
 ```
 
 执行此命令后：
 1. 会自动打开浏览器窗口
 2. 跳转到小红书登录页面
 3. 请手动完成登录操作
-4. 登录成功后会自动保存 Cookie 到 `cookies.json` 文件
+4. 登录成功后会自动保存 Cookie 到 `~/.mcp/rednote/cookies.json` 文件
 
 ### 2. 在 Cursor 中配置 MCP Server
 
@@ -130,41 +131,10 @@ npx @modelcontextprotocol/inspector npx rednote-mcp --stdio
 3. 提供一个交互式界面来检查请求和响应
 4. 帮助调试和验证 MCP 协议的实现
 
-## 配置
-
-在项目根目录创建 `.env` 文件，配置以下变量：
-
-```
-# Cookie 存储路径
-COOKIE_STORAGE_PATH=./cookies.json
-
-# MCP 服务器配置
-PORT=3000
-HOST=localhost
-```
-
-## 项目结构
-
-```
-rednote-mcp/
-├── src/              # 源代码目录
-│   ├── auth/         # 认证相关
-│   │   ├── authManager.ts
-│   │   └── cookieManager.ts
-│   ├── cli.ts        # 命令行接口
-│   └── index.ts      # 主入口
-├── docs/             # 文档目录
-│   └── README.en.md  # 英文文档
-├── tests/            # 测试目录
-├── .env              # 环境配置
-├── package.json      # 项目配置
-└── tsconfig.json     # TypeScript 配置
-```
-
 ## 注意事项
 
 1. 首次使用必须执行 `init` 命令进行登录
-2. Cookie 文件包含敏感信息，请勿泄露
+2. Cookie 文件包含敏感信息，避免泄露
 3. 建议定期更新 Cookie，避免失效
 4. 确保已正确安装 Node.js 环境
 
