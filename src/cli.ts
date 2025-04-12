@@ -117,6 +117,8 @@ if (process.argv.includes('--stdio')) {
         const authManager = new AuthManager();
         await authManager.login();
         await authManager.cleanup();
+        console.log('Login successful! Cookie has been saved.');
+        process.exit(0);
       } catch (error) {
         console.error('Error during initialization:', error);
         process.exit(1);
