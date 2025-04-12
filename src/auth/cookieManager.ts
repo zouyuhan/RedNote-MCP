@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Cookie } from 'playwright';
+import {Cookie} from 'playwright';
 
 export class CookieManager {
   private readonly cookiePath: string;
@@ -12,7 +12,7 @@ export class CookieManager {
   async saveCookies(cookies: Cookie[]): Promise<void> {
     const dir = path.dirname(this.cookiePath);
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, {recursive: true});
     }
     await fs.promises.writeFile(this.cookiePath, JSON.stringify(cookies, null, 2));
   }

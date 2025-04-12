@@ -1,5 +1,5 @@
-import { AuthManager } from '../auth/authManager';
-import { Browser, Page } from 'playwright';
+import {AuthManager} from '../auth/authManager';
+import {Browser, Page} from 'playwright';
 
 interface Note {
   title: string;
@@ -25,17 +25,6 @@ export class RedNoteTools {
 
   constructor() {
     this.authManager = new AuthManager();
-  }
-
-  /**
-   * Wait for a random duration between min and max seconds
-   * @param min Minimum seconds to wait
-   * @param max Maximum seconds to wait
-   */
-  private async randomDelay(min: number, max: number): Promise<void> {
-    if (!this.page) throw new Error('Page not initialized');
-    const ms = Math.floor(Math.random() * (max - min) * 1000) + min * 1000;
-    await this.page.waitForTimeout(ms);
   }
 
   async initialize(): Promise<void> {
@@ -99,7 +88,7 @@ export class RedNoteTools {
           await this.page.waitForSelector('#noteContainer', {
             timeout: 30000
           });
-          
+
           await this.randomDelay(0.5, 1.5);
 
           // Extract note content
@@ -193,14 +182,14 @@ export class RedNoteTools {
       await this.page.waitForSelector('main article');
 
       // Extract note content
-      const note = await this.page.evaluate(() => {
+      return await this.page.evaluate(() => {
         // Get main article content
         const article = document.querySelector('main article');
         if (!article) throw new Error('Article not found');
 
         // Get title from h1 or first text block
         const title = article.querySelector('h1')?.textContent?.trim() ||
-                     article.querySelector('.title')?.textContent?.trim() || '';
+          article.querySelector('.title')?.textContent?.trim() || '';
 
         // Get content from article text
         const contentBlocks = Array.from(article.querySelectorAll('p, .content'));
@@ -227,8 +216,6 @@ export class RedNoteTools {
           comments
         };
       });
-
-      return note;
     } finally {
       await this.cleanup();
     }
@@ -245,7 +232,7 @@ export class RedNoteTools {
       await this.page.waitForSelector('[role="dialog"] [role="list"]');
 
       // Extract comments
-      const comments = await this.page.evaluate(() => {
+      return await this.page.evaluate(() => {
         const items = document.querySelectorAll('[role="dialog"] [role="list"] [role="listitem"]');
         const results: Comment[] = [];
 
@@ -255,15 +242,24 @@ export class RedNoteTools {
           const likes = parseInt(item.querySelector('[data-testid="likes-count"]')?.textContent || '0');
           const time = item.querySelector('time')?.textContent?.trim() || '';
 
-          results.push({ author, content, likes, time });
+          results.push({author, content, likes, time});
         });
 
         return results;
       });
-
-      return comments;
     } finally {
       await this.cleanup();
     }
+  }
+
+  /**
+   * Wait for a random duration between min and max seconds
+   * @param min Minimum seconds to wait
+   * @param max Maximum seconds to wait
+   */
+  private async randomDelay(min: number, max: number): Promise<void> {
+    if (!this.page) throw new Error('Page not initialized');
+    const ms = Math.floor(Math.random() * (max - min) * 1000) + min * 1000;
+    await this.page.waitForTimeout(ms);
   }
 }

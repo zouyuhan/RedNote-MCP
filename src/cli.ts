@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import { AuthManager } from './auth/authManager';
-import { RedNoteTools } from './tools/rednoteTools';
+import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
+import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js";
+import {z} from "zod";
+import {AuthManager} from './auth/authManager';
+import {RedNoteTools} from './tools/rednoteTools';
 
 const tools = new RedNoteTools();
 
+const name = "rednote";
+const description = "A friendly tool to help you access and interact with Xiaohongshu (RedNote) content through Model Context Protocol.";
+const version = "0.1.6";
+
 // Create server instance
 const server = new McpServer({
-  name: "rednote",
-  version: "0.1.0",
+  name,
+  version,
   protocolVersion: "2024-11-05",
   capabilities: {
     tools: true,
@@ -26,7 +30,7 @@ const server = new McpServer({
 server.tool("search_notes", "根据关键词搜索笔记", {
   keywords: z.string().describe("搜索关键词"),
   limit: z.number().optional().describe("返回结果数量限制"),
-}, async ({ keywords, limit = 10 }: { keywords: string; limit?: number }) => {
+}, async ({keywords, limit = 10}: { keywords: string; limit?: number }) => {
   const notes = await tools.searchNotes(keywords, limit);
   return {
     content: notes.map(note => ({
@@ -38,7 +42,7 @@ server.tool("search_notes", "根据关键词搜索笔记", {
 
 server.tool("get_note_content", "获取笔记内容", {
   url: z.string().describe("笔记 URL"),
-}, async ({ url }: { url: string }) => {
+}, async ({url}: { url: string }) => {
   const note = await tools.getNoteContent(url);
   return {
     content: [{
@@ -50,7 +54,7 @@ server.tool("get_note_content", "获取笔记内容", {
 
 server.tool("get_note_comments", "获取笔记评论", {
   url: z.string().describe("笔记 URL"),
-}, async ({ url }: { url: string }) => {
+}, async ({url}: { url: string }) => {
   const comments = await tools.getNoteComments(url);
   return {
     content: comments.map(comment => ({
@@ -97,14 +101,13 @@ if (process.argv.includes('--stdio')) {
     process.exit(1);
   });
 } else {
-  // 设置命令行程序
-  const { Command } = require('commander');
+  const {Command} = require('commander');
   const program = new Command();
 
   program
-    .name('rednote-mcp')
-    .description('RedNote MCP implementation for Model Context Protocol')
-    .version('0.1.0');
+    .name(name)
+    .description(description)
+    .version(version);
 
   program
     .command('init')
