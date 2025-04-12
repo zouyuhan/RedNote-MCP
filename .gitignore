@@ -4,3 +4,4 @@ dist/
 cookies.json
 *.log
 .cursor
+logs/
