@@ -16,7 +16,7 @@ const tools = new RedNoteTools();
 const name = "rednote";
 const description =
   "A friendly tool to help you access and interact with Xiaohongshu (RedNote) content through Model Context Protocol.";
-const version = "0.2.0";
+const version = "0.2.1";
 
 // Create server instance
 const server = new McpServer({
