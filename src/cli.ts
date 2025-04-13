@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import { AuthManager } from "./auth/authManager";
-import { RedNoteTools } from "./tools/rednoteTools";
-import logger, { LOGS_DIR, packLogs } from "./utils/logger";
-import { exec } from "child_process";
-import { promisify } from "util";
+import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
+import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js";
+import {z} from "zod";
+import {AuthManager} from "./auth/authManager";
+import {RedNoteTools} from "./tools/rednoteTools";
+import logger, {LOGS_DIR, packLogs} from "./utils/logger";
+import {exec} from "child_process";
+import {promisify} from "util";
 
 const execAsync = promisify(exec);
 
@@ -16,7 +16,7 @@ const tools = new RedNoteTools();
 const name = "rednote";
 const description =
   "A friendly tool to help you access and interact with Xiaohongshu (RedNote) content through Model Context Protocol.";
-const version = "0.1.8";
+const version = "0.2.0";
 
 // Create server instance
 const server = new McpServer({
@@ -40,7 +40,7 @@ server.tool(
     keywords: z.string().describe("搜索关键词"),
     limit: z.number().optional().describe("返回结果数量限制"),
   },
-  async ({ keywords, limit = 10 }: { keywords: string; limit?: number }) => {
+  async ({keywords, limit = 10}: { keywords: string; limit?: number }) => {
     logger.info(`Searching notes with keywords: ${keywords}, limit: ${limit}`);
     try {
       const notes = await tools.searchNotes(keywords, limit);
@@ -64,7 +64,7 @@ server.tool(
   {
     url: z.string().describe("笔记 URL"),
   },
-  async ({ url }: { url: string }) => {
+  async ({url}: { url: string }) => {
     logger.info(`Getting note content for URL: ${url}`);
     try {
       const note = await tools.getNoteContent(url);
@@ -91,7 +91,7 @@ server.tool(
   {
     url: z.string().describe("笔记 URL"),
   },
-  async ({ url }: { url: string }) => {
+  async ({url}: { url: string }) => {
     logger.info(`Getting comments for URL: ${url}`);
     try {
       const comments = await tools.getNoteComments(url);
@@ -147,7 +147,7 @@ if (process.argv.includes("--stdio")) {
     process.exit(1);
   });
 } else {
-  const { Command } = require("commander");
+  const {Command} = require("commander");
   const program = new Command();
 
   program.name(name).description(description).version(version);

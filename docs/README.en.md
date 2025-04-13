@@ -50,12 +50,14 @@ npm run dev -- init
 ## What's Included
 
 Here's what you can do with RedNote MCP:
+
 - Log in and stay logged in (with automatic cookie management)
 - Search through notes using keywords
 - Use our handy command-line tools
+- View note content using URLs
 
 Coming soon:
-- [ ] View note content using URLs
+
 - [ ] Access comment sections using URLs
 
 ## How to Use
@@ -72,6 +74,7 @@ npm run dev -- init
 ```
 
 Here's what happens:
+
 1. Your browser will open automatically
 2. You'll see the Xiaohongshu login page
 3. Log in like you normally would
@@ -86,7 +89,9 @@ To use RedNote MCP in Cursor, add this to your settings.json:
   "mcpServers": {
     "RedNote MCP": {
       "command": "rednote-mcp",
-      "args": ["--stdio"]
+      "args": [
+        "--stdio"
+      ]
     }
   }
 }
@@ -99,13 +104,17 @@ Or if you prefer using npx:
   "mcpServers": {
     "RedNote MCP": {
       "command": "npx",
-      "args": ["rednote-mcp", "--stdio"]
+      "args": [
+        "rednote-mcp",
+        "--stdio"
+      ]
     }
   }
 }
 ```
 
 A few things to note:
+
 - You can use either the global command (`rednote-mcp`) or `npx`
 - Make sure to include `--stdio` - it's needed for Cursor communication
 
@@ -141,6 +150,7 @@ npx @modelcontextprotocol/inspector npx rednote-mcp --stdio
 ```
 
 This will:
+
 1. Start up the Inspector
 2. Run RedNote MCP through it
 3. Give you a nice interface to watch requests and responses
