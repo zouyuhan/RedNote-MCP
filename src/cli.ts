@@ -5,6 +5,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { AuthManager } from './auth/authManager'
 import { RedNoteTools } from './tools/rednoteTools'
+import { Note } from './tools/noteDetail'
+import { NoteAction } from './tools/noteAction'
 import logger, { LOGS_DIR, packLogs } from './utils/logger'
 import { exec } from 'child_process'
 import { promisify } from 'util'
@@ -13,9 +15,8 @@ import { createStdioLogger } from './utils/stdioLogger'
 const execAsync = promisify(exec)
 
 const name = 'rednote'
-const description =
-  'A friendly tool to help you access and interact with Xiaohongshu (RedNote) content through Model Context Protocol.'
-const version = '0.2.3'
+const description = '抓取小红书的内容的 MCP 服务'
+const version = '0.3.1'
 
 // Create server instance
 const server = new McpServer({
@@ -31,25 +32,73 @@ const server = new McpServer({
   }
 })
 
+function format_note(note: Note[]) {
+  type TextContent = { type: 'text'; text: string; [x:string]: unknown };
+  type ImageContent = { type: 'image'; data: string; mimeType: string; [x: string]: unknown };
+  type Content = TextContent | ImageContent;
+
+  let result: Content[] = [];
+
+  note.forEach((note, i) => {
+    const note_head: TextContent = {
+      type: 'text',
+      text: `以下是第 ${i + 1} 个笔记内容(JSON格式)和用户信息(JSON格式)`
+    }
+    const note_content: TextContent = {
+      type: 'text',
+      text: JSON.stringify(note.note_details)
+    }
+    const user_content: TextContent = {
+      type: 'text',
+      text: JSON.stringify(note.user_details)
+    }
+
+    result.push(note_head, note_content, user_content)
+
+    if (note.note_images) {
+      note.note_images.forEach((image, j) => {
+        const result_head: TextContent = { // Explicitly type as TextContent
+          type: 'text',
+          text: `以下是第 ${i+1} 个笔记第 ${j+1}/${note.note_images?.length || 0} 张图片，内容(base64)如下:`
+        }
+        const result_img: ImageContent = { // Explicitly type as ImageContent
+          type: 'image',
+          data: image,
+          mimeType: 'image/jpeg',
+        }
+        result.push(result_head, result_img) // Push individual elements
+      })
+    }
+  })
+
+  return result
+}
+
 // Register tools
 server.tool(
-  'search_notes',
-  '根据关键词搜索笔记',
+  'search_notes_and_get_contents',
+  '根据关键词搜索最相关的笔记，返回笔记的文字内容、图片链接、视频链接、点赞人数、收藏人数、评论人数、笔记链接、博主关注的人数、博主被多少人关注、博主的笔记被点赞和收藏次数',
   {
     keywords: z.string().describe('搜索关键词'),
-    limit: z.number().optional().describe('返回结果数量限制')
+    sort_type: z.string().optional().describe('搜索结果排序方式（默认default，可选值为default、most_liked、latest）'),
+    period: z.string().optional().describe('搜索时间范围（默认all，可选值为all、day、week、half_year）'),
+    limit: z.number().optional().describe('返回结果数量限制(默认10条）'),
+    with_images: z.boolean().optional().describe('是否返回图片内容(Base64)'),
   },
-  async ({ keywords, limit = 10 }: { keywords: string; limit?: number }) => {
+  async ({ keywords, sort_type = 'default', period = 'all', limit = 10, with_images = false }: { 
+    keywords: string; 
+    sort_type?: string; 
+    period?: string; 
+    limit?: number; 
+    with_images?: boolean }) => {
     logger.info(`Searching notes with keywords: ${keywords}, limit: ${limit}`)
     try {
       const tools = new RedNoteTools()
-      const notes = await tools.searchNotes(keywords, limit)
+      const notes = await tools.searchNotesAndGetContents(keywords, sort_type, period, limit, with_images)
       logger.info(`Found ${notes.length} notes`)
+      const result = format_note(notes)
       return {
-        content: notes.map((note) => ({
-          type: 'text',
-          text: `标题: ${note.title}\n作者: ${note.author}\n内容: ${note.content}\n点赞: ${note.likes}\n评论: ${note.comments}\n链接: ${note.url}\n---`
-        }))
+        content: result 
       }
     } catch (error) {
       logger.error('Error searching notes:', error)
@@ -58,33 +107,53 @@ server.tool(
   }
 )
 
+
+
+server.tool(
+  'get_user_notes',
+  '获取用戶的所有笔记, 返回笔记的文字内容、图片链接、视频链接、点赞人数、收藏人数、评论人数、笔记链接、博主关注的人数、博主被多少人关注、博主的笔记被点赞和收藏次数',
+  {
+    url: z.string().describe('用戶主頁 URL'),
+    limit: z.number().optional().describe('返回結果数量限制（默认10条）'),
+    with_images: z.boolean().optional().describe('是否返回图片内容(Base64)'),
+  },
+  async ({ url, limit = 10, with_images = false }: { url: string; limit?: number; with_images?: boolean }) => {
+    logger.info(`Getting user notes for URL: ${url}, limit: ${limit}`)
+    try {
+      const tools = new RedNoteTools()
+      const notes = await tools.getUserNotesNew(url, limit, with_images)
+      logger.info(`Found ${notes.length} notes`)
+      const result = format_note(notes)
+      return {
+        content: result 
+      }
+    } catch (error) {
+      logger.error('Error getting user notes:', error)
+      throw error
+    }
+  }
+)
+
 server.tool(
   'get_note_content',
-  '获取笔记内容',
+  '获取具体某个笔记的文字内容、图片链接、图片详情(base64)、视频链接、点赞人数、收藏人数、评论人数、笔记链接',
   {
     url: z.string().describe('笔记 URL')
   },
   async ({ url }: { url: string }) => {
-    logger.info(`Getting note content for URL: ${url}`)
+    logger.info(`Getting note images for URL: ${url}`)
     try {
       const tools = new RedNoteTools()
       const note = await tools.getNoteContent(url)
-      logger.info(`Successfully retrieved note: ${note.title}`)
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(note)
-          }
-        ]
-      }
+      const result = format_note([note])
+      return {content: result}
     } catch (error) {
       logger.error('Error getting note content:', error)
       throw error
     }
   }
 )
+
 
 server.tool(
   'get_note_comments',
@@ -111,28 +180,79 @@ server.tool(
   }
 )
 
-// Add login tool
-server.tool('login', '登录小红书账号', {}, async () => {
-  logger.info('Starting login process')
-  const authManager = new AuthManager()
-  try {
-    await authManager.login()
-    logger.info('Login successful')
-    return {
-      content: [
-        {
-          type: 'text',
-          text: '登录成功！Cookie 已保存。'
+server.tool(
+  'post_note_action_list',
+  '点赞或评论笔记',
+  {
+    note_action_list: z.array(z.object({
+      title: z.string().describe('笔记标题'),
+      url: z.string().describe('笔记 URL'),
+      action: z.enum(['like', 'comment']).describe('操作类型：like(点赞) 或 comment(评论)'),
+      comment: z.string().optional().describe('评论内容，当 action 为 comment 时必填')
+    })).describe('笔记操作列表')
+  },
+  async ({ note_action_list }: { note_action_list: NoteAction[] }) => {
+    logger.info(`Posting note action list: ${note_action_list.length}`)
+    try {
+      const tools = new RedNoteTools()
+      const result = await tools.postNoteActionList(note_action_list)
+
+      const failedCount = result.filter(r => !r).length
+      if (failedCount === 0) {
+        return {
+          content: [{
+            type: 'text',
+            text: '全部笔记操作成功'
+          }]
         }
-      ]
+      } else {
+        const failedActions = note_action_list.filter((_, index) => !result[index])
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `部分笔记操作成功，${failedCount} 個笔记操作失敗`
+            },
+            {
+              type: 'text',
+              text: JSON.stringify(failedActions, null, 2)
+            }
+          ]
+        }
+      }      
+    } catch (error) {
+      logger.error('Error posting note action list:', error)
+      throw error
     }
-  } catch (error) {
-    logger.error('Login failed:', error)
-    throw error
-  } finally {
-    await authManager.cleanup()
   }
-})
+)
+
+// Add login tool
+server.tool(
+  'login', 
+  '登录小红书账号', 
+  {}, 
+  async () => {
+    logger.info('Starting login process')
+    const authManager = new AuthManager()
+    try {
+      await authManager.login()
+      logger.info('Login successful')
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '登录成功！Cookie 已保存。'
+          }
+        ]
+      }
+    } catch (error) {
+      logger.error('Login failed:', error)
+      throw error
+    } finally {
+      await authManager.cleanup()
+    }
+  })
 
 // Start the server
 async function main() {

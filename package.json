@@ -1,6 +1,6 @@
 {
   "name": "rednote-mcp",
-  "version": "0.2.3",
+  "version": "0.4.0",
   "description": "A friendly tool to help you access and interact with Xiaohongshu (RedNote) content through Model Context Protocol.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -52,12 +52,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ifuryst/rednote-mcp.git"
+    "url": "git+https://github.com/zouyuhan/rednote-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/ifuryst/rednote-mcp/issues"
+    "url": "https://github.com/zouyuhan/rednote-mcp/issues"
   },
-  "homepage": "https://github.com/ifuryst/rednote-mcp#readme",
+  "homepage": "https://github.com/zouyuhan/rednote-mcp#readme",
   "engines": {
     "node": ">=16"
   }

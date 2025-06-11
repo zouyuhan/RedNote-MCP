@@ -47,7 +47,7 @@ export class AuthManager {
     logger.info('Launching browser');
     // 始终创建新的浏览器实例，不复用之前的
     this.browser = await chromium.launch({
-      headless: false,
+      headless: true,
     });
     return this.browser;
   }
@@ -140,6 +140,9 @@ export class AuthManager {
         }
 
         logger.info('Login successful, saving cookies');
+
+        await new Promise((resolve) => setTimeout(resolve, 2 * 1000))
+
         // Save cookies after successful login
         const newCookies = await this.context.cookies();
         await this.cookieManager.saveCookies(newCookies);
