@@ -18,12 +18,21 @@ export async function postNoteAction(page: Page, noteAction: NoteAction): Promis
     await new Promise((resolve) => setTimeout(resolve, delay * 1000)) 
 
     if (noteAction.action === 'like') {
+        const likeWrapper = page.locator('.input-box .like-wrapper.like-active');
+        const useElement = likeWrapper.locator('use');
+        const xlinkHrefValue = await useElement.getAttribute('xlink:href');
+
+        // 如果已经点赞，则不重复点赞
+        if (xlinkHrefValue === '#liked') {
+            logger.info(`Already liked: ${noteAction.title} ${noteAction.url}`)
+            return true
+        }
+
         const btn_selector = '.input-box .like-wrapper.like-active .like-lottie'
         await page.waitForSelector(btn_selector)
         await page.click(btn_selector)
 
         await new Promise((resolve) => setTimeout(resolve, 2.0 * 1000))
-
     } else if (noteAction.action === 'comment') {
         // 焦点到文本框
         await page.click('.input-box .content-edit .inner span')

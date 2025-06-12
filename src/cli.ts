@@ -11,7 +11,6 @@ import logger, { LOGS_DIR, packLogs } from './utils/logger'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { createStdioLogger } from './utils/stdioLogger'
-
 const execAsync = promisify(exec)
 
 const name = 'rednote'
@@ -107,10 +106,8 @@ server.tool(
   }
 )
 
-
-
 server.tool(
-  'get_user_notes',
+  'get_user_notes_and_get_contents',
   '获取用戶的所有笔记, 返回笔记的文字内容、图片链接、视频链接、点赞人数、收藏人数、评论人数、笔记链接、博主关注的人数、博主被多少人关注、博主的笔记被点赞和收藏次数',
   {
     url: z.string().describe('用戶主頁 URL'),
@@ -121,7 +118,7 @@ server.tool(
     logger.info(`Getting user notes for URL: ${url}, limit: ${limit}`)
     try {
       const tools = new RedNoteTools()
-      const notes = await tools.getUserNotesNew(url, limit, with_images)
+      const notes = await tools.getUserNotesAndGetContents(url, limit, with_images)
       logger.info(`Found ${notes.length} notes`)
       const result = format_note(notes)
       return {

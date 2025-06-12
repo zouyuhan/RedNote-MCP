@@ -29,6 +29,11 @@ export interface Note {
   note_images?: string[],
 }
 
+export interface NoteTitle {
+  title: string
+  url: string
+}
+
 export interface Comment {
   author: string
   content: string

@@ -1,9 +1,10 @@
 import { AuthManager } from '../auth/authManager'
-import { Browser, Page } from 'playwright'
+import { Browser, ElementHandle, Page } from 'playwright'
 import logger from '../utils/logger'
-import { getNoteDetail, getUserDetailInNotePage, getNoteImages, removeDuplicateStrings} from './noteDetail'
+import { getNoteDetail, getUserDetailInNotePage, getNoteImages, removeDuplicateStrings, NoteTitle} from './noteDetail'
 import { NoteDetail, UserDetail, Note, Comment } from './noteDetail'
 import { NoteAction, postNoteAction } from './noteAction'
+import { boolean } from 'zod'
 
 export class RedNoteTools {
   private authManager: AuthManager
@@ -15,9 +16,9 @@ export class RedNoteTools {
     this.authManager = new AuthManager()
   }
 
-  async initialize(): Promise<void> {
+  async initialize(headless: boolean = false): Promise<void> {
     logger.info('Initializing browser and page')
-    this.browser = await this.authManager.getBrowser()
+    this.browser = await this.authManager.getBrowser(headless)
     if (!this.browser) {
       throw new Error('Failed to initialize browser')
     }
@@ -175,95 +176,38 @@ export class RedNoteTools {
       }
 
       // Get all note items
-      let noteItems = await this.page.$$('.feeds-container .note-item')
-      logger.info(`Found ${noteItems.length} note items`)
-      const notes: Note[] = []
+      let note_titles: NoteTitle[] = []
+      let notes: Note[] = []
 
-      // Process each note
-      for (let i = 0; i < Math.min(noteItems.length, limit); i++) {
-        logger.info(`Processing note ${i + 1}/${Math.min(noteItems.length, limit)}`)
+      let scrollHeight = await this.page.evaluate(() => document.body.scrollHeight);
+      let currentScrollY = await this.page.evaluate(() => window.scrollY);
+      let lastScrollY = -1;
 
-        try {
-          await this.randomDelay(0.5, 1.5)
-          
-          logger.info(`Waiting for note page to load.`)
-          // Click on the note cover to open detail
-          await noteItems[i].$eval('a.cover.mask.ld', (el: HTMLElement) => el.click())
+      while (notes.length < limit && currentScrollY != lastScrollY && currentScrollY < scrollHeight) {
+        await this.page.waitForSelector('.feeds-container .note-item')
 
-          // Wait for the note page to load
-          await this.page.waitForSelector('#noteContainer .note-text', {
-            timeout: 30000
-          })
-          await this.randomDelay(0.5, 1.5)
+        let noteItems = await this.page.$$('.feeds-container .note-item')
+        // 每次最多抓取12篇笔记
+        for (let i = 0, j = 0; i < noteItems.length && j < 12; i++, j++) {
+          const is_added = await this.addNoteItemToList(note_titles, noteItems[i])
+          if (is_added) {
+            await this.moveMouseRandomly(this.page)
 
-          // Extract note content
-          const note_details = await getNoteDetail(this.page) 
-          if (note_details) {
-            let user_details = await getUserDetailInNotePage(this.page)
-
-            let note_images: string[] = []
-            if (with_images) {
-              note_images = await getNoteImages(note_details.imgs_url || [])
+            const note = await this.getNoteContentInNotePage(this.page, noteItems[i], with_images)
+            if (note) {
+              notes.push(note)
             }
-
-            notes.push({
-              user_details: user_details,
-              note_details: note_details,
-              note_images: note_images,
-            })
           }
-
-          logger.info('Paged parsed.')
-
-          // Add random delay before closing
-          await this.randomDelay(0.5, 1)
-
-          // Close note by clicking the close button
-          const closeButton = await this.page.$('.close-circle')
-          if (closeButton) {
-            logger.info('Closing note dialog')
-            await closeButton.click()
-
-            // Wait for note dialog to disappear
-            await this.page.waitForSelector('#noteContainer', {
-              state: 'detached',
-              timeout: 30000
-            })
-          }
-        } catch (error) {
-          const closeButton = await this.page.$('.close-circle')
-          if (closeButton) {
-            logger.info('Attempting to close note dialog after error')
-            await closeButton.click()
-
-            // Wait for note dialog to disappear
-            await this.page.waitForSelector('#noteContainer', {
-              state: 'detached',
-              timeout: 30000
-            })
-          }
-        } finally {
-          // Add random delay before next note
-          await this.randomDelay(0.5, 1.5)
         }
 
-        // // 滾動到頁面底部以加載更多文章
-        // await this.page.evaluate(() => {
-        //   window.scrollTo(0, document.body.scrollHeight)
-        // })
+        logger.info(`Scrolling page down, currentScrollY: ${currentScrollY}, scrollHeight: ${scrollHeight}`)
+        const scroll_step = Math.random() * 500 + 500
+        await this.page.mouse.wheel(0, scroll_step);
+        await this.page.waitForTimeout(1000);
 
-        // // 等待新內容加載
-        // await this.page.waitForTimeout(1000)
-
-        // // 檢查是否已經到底部
-        // const isBottom = await this.page.evaluate(() => {
-        //   return window.innerHeight + window.scrollY >= document.body.scrollHeight
-        // })
-
-        // if (isBottom) {
-        //   logger.info('Reached end of search results')
-        //   break
-        // }
+        lastScrollY = currentScrollY;
+        scrollHeight = await this.page.evaluate(() => document.body.scrollHeight);
+        currentScrollY = await this.page.evaluate(() => window.scrollY);
       }
 
       logger.info(`Successfully processed ${notes.length} notes`)
@@ -276,129 +220,12 @@ export class RedNoteTools {
     }
   }
 
-  async searchNotesList(
-    keywords: string,
-    sort_type: string = 'default',
-    period: string = 'all',
-    limit: number = 10): Promise<string[]> {
-    logger.info(`Searching notes with keywords: ${keywords}, limit: ${limit}`)
+  async getUserNotesAndGetContents(
+    userUrl: string, 
+    limit: number = 10,
+    with_images: boolean = false): Promise<Note[]> {
+    logger.info(`Getting user notes list for URL: ${userUrl} with limit: ${limit}`)
 
-    try {
-      await this.initialize()
-      if (!this.page) throw new Error('Page not initialized')
-
-      // Navigate to search page
-      logger.info('Navigating to search page')
-      await this.page.goto(`https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(keywords)}&source=web_explore_feed`)
-
-      // Wait for search results to load
-      logger.info('Waiting for search results')
-      await this.page.waitForSelector('.feeds-container', {
-        timeout: 60000
-      })
-
-      await this.randomDelay(0.5, 1.5)
-      
-      async function clickSearchFilter(page: Page, filter_tag: string) {
-        try {
-          logger.info(`Waiting for use filter "${filter_tag}"`)
-
-          // 悬停"筛选"在上，获取用户数据
-          const filterButtonSelector = '.search-layout .filter'
-          await page.waitForSelector(filterButtonSelector, {
-            timeout: 30000
-          })
-          await page.hover(filterButtonSelector)
-
-          const wait_time = Math.random() * (1500 - 500) + 500
-          await new Promise((resolve) => setTimeout(resolve, wait_time))
-
-          const filterSelector = '.search-layout .filter-panel .filter-container' // 根據實際彈窗 class 調整
-          await page.waitForSelector(filterSelector, {
-            timeout: 3000
-          })
-
-          logger.info(`Use filter "${filter_tag}"`)
-
-          const filterSpan = await page.getByText(filter_tag)
-          if (filterSpan) {
-            await filterSpan.click()
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, wait_time))
-
-          page.mouse.move(0, 0)
-
-          await new Promise((resolve) => setTimeout(resolve, wait_time))
-
-          logger.info(`Waiting for search results after filter "${filter_tag}"`)
-          await page.waitForSelector('.feeds-container', {
-            timeout: 60000
-          })
-
-        } catch (error) {
-          logger.error(`Error applying search filter "${filter_tag}":`, error)
-          // Continue execution despite filter error
-        }
-      }
-
-      if (sort_type === 'most_liked') {
-        await clickSearchFilter(this.page, '最多点赞')
-      } else if (sort_type === 'latest') {
-        await clickSearchFilter(this.page, '最新')
-      }
-
-      if (period === 'day') {
-        await clickSearchFilter(this.page, '一天内')
-      } else if (period === 'week') {
-        await clickSearchFilter(this.page, '一周内')
-      } else if (period === 'half_year') {
-        await clickSearchFilter(this.page, '半年内')
-      }
-
-      // Get all note items
-      let noteItems = await this.page.$$('.feeds-container .note-item')
-      logger.info(`Found ${noteItems.length} note items`)
-      const notes: string[] = []
-
-      // Process each note
-      for (let i = 0; i < Math.min(noteItems.length, limit); i++) {
-        const note_url = await noteItems[i].$eval('a.cover.mask.ld', (el: HTMLElement) => el.getAttribute('href'))
-        if (note_url) {
-          notes.push(note_url)
-        }
-        // // 滾動到頁面底部以加載更多文章
-        // await this.page.evaluate(() => {
-        //   window.scrollTo(0, document.body.scrollHeight)
-        // })
-
-        // // 等待新內容加載
-        // await this.page.waitForTimeout(1000)
-
-        // // 檢查是否已經到底部
-        // const isBottom = await this.page.evaluate(() => {
-        //   return window.innerHeight + window.scrollY >= document.body.scrollHeight
-        // })
-
-        // if (isBottom) {
-        //   logger.info('Reached end of search results')
-        //   break
-        // }
-      }
-
-      logger.info(`Successfully processed ${notes.length} notes`)
-      return notes
-    } catch (error) {
-      logger.error('Error searching notes:', error)
-      throw error
-    } finally {
-      await this.cleanup()
-    }
-  }
-
-
-  async getUserNotesNew(userUrl: string, limit: number = 10, with_images: boolean = false): Promise<Note[]> {
-    logger.info(`Getting user notes for URL: ${userUrl} with limit: ${limit}`)
     try {
       await this.initialize()
       if (!this.page) throw new Error('Page not initialized')
@@ -411,112 +238,170 @@ export class RedNoteTools {
       await this.page.waitForSelector('.feeds-container')
 
       // Get all note items
-      let noteItems = await this.page.$$('.feeds-container .note-item')
-      logger.info(`Found ${noteItems.length} note items`)
-      const notes: Note[] = []
+      let note_titles: NoteTitle[] = []
+      let notes: Note[] = []
 
-      while (notes.length < limit) {
-        // Process each note
-        for (let i = 0; i < Math.min(noteItems.length, limit); i++) {
-          logger.info(`Processing note ${i + 1}/${Math.min(noteItems.length, limit)}`)
+      let scrollHeight = await this.page.evaluate(() => document.body.scrollHeight);
+      let currentScrollY = await this.page.evaluate(() => window.scrollY);
+      let lastScrollY = -1;
 
-          try {
-            logger.info(noteItems[i])
-            // Click on the note cover to open detail
-            await noteItems[i].$eval('a.cover.mask.ld', (el: HTMLElement) => el.click())
+      while (notes.length < limit && currentScrollY != lastScrollY && currentScrollY < scrollHeight) {
+        await this.page.waitForSelector('.feeds-container .note-item')
 
-            // Wait for the note page to load
-            logger.info('Waiting for note page to load')
-            await this.page.waitForSelector('#noteContainer', {
-              timeout: 30000
-            })
+        let noteItems = await this.page.$$('.feeds-container .note-item')
+        // 每次最多抓取10篇笔记，就翻页一下
+        for (let i = 0, j = 0; i < noteItems.length && j < 5; i++, j++) {
+          const is_added = await this.addNoteItemToList(note_titles, noteItems[i])
+          if (is_added) {
+            await this.moveMouseRandomly(this.page)
 
-            await this.randomDelay(0.5, 1.5)
-
-            // Extract note content
-            const note_details = await getNoteDetail(this.page) 
-            if (note_details) {
-              let user_details = await getUserDetailInNotePage(this.page)
-
-              let note_images: string[] = []
-              if (with_images) {
-                note_images = await getNoteImages(note_details.imgs_url || [])
-              }
-
-              notes.push({
-                user_details: user_details,
-                note_details: note_details,
-                note_images: note_images,
-              })
+            const note = await this.getNoteContentInNotePage(this.page, noteItems[i], with_images)
+            if (note) {
+              notes.push(note)
             }
-
-            // Add random delay before closing
-            await this.randomDelay(1.0, 2.5)
-
-            // Close note by clicking the close button
-            const closeButton = await this.page.$('.close-circle')
-            if (closeButton) {
-              logger.info('Closing note dialog')
-              await closeButton.click()
-
-              // Wait for note dialog to disappear
-              await this.page.waitForSelector('#noteContainer', {
-                state: 'detached',
-                timeout: 30000
-              })
-            }
-          } catch (error) {
-            logger.error(`Error processing note ${i + 1}:`, error)
-            const closeButton = await this.page.$('.close-circle')
-            if (closeButton) {
-              logger.info('Attempting to close note dialog after error')
-              await closeButton.click()
-
-              // Wait for note dialog to disappear
-              await this.page.waitForSelector('#noteContainer', {
-                state: 'detached',
-                timeout: 30000
-              })
-            }
-          } finally {
-            // Add random delay before next note
-            await this.randomDelay(0.5, 1.5)
           }
+        }
 
-          if (notes.length >= limit) {
-            logger.info('Reached limit of search results')
-            break
-          }
-        } 
+        logger.info(`Scrolling page down, currentScrollY: ${currentScrollY}, scrollHeight: ${scrollHeight}`)
+        const scroll_step = Math.random() * 300 + 200
+        await this.page.mouse.wheel(0, scroll_step);
+        await this.page.waitForTimeout(1000);
 
-        // // 滾動到頁面底部以加載更多文章
-        // await this.page.evaluate(() => {
-        //   window.scrollTo(0, document.body.scrollHeight)
-        // })
-
-        // // 等待新內容加載
-        // await this.page.waitForTimeout(1000)
-
-        // // 檢查是否已經到底部
-        // const isBottom = await this.page.evaluate(() => {
-        //   return window.innerHeight + window.scrollY >= document.body.scrollHeight
-        // })
-
-        // if (isBottom) {
-        //   logger.info('Reached end of user notes')
-        //   break
-        // }
+        lastScrollY = currentScrollY;
+        scrollHeight = await this.page.evaluate(() => document.body.scrollHeight);
+        currentScrollY = await this.page.evaluate(() => window.scrollY);
       }
 
-      logger.info(`Successfully retrieved ${notes.length} user notes`)
+      logger.info(`Successfully processed ${notes.length} notes`)
       return notes
     } catch (error) {
-      logger.error('Error getting user notes:', error)
+      logger.error('Error getting user notes list:', error)
       throw error
     } finally {
       await this.cleanup()
     }
   }
+
+  // async getUserNotesAndGetContents(userUrl: string, limit: number = 10, with_images: boolean = false): Promise<Note[]> {
+  //   logger.info(`Getting user notes for URL: ${userUrl} with limit: ${limit}`)
+  //   try {
+  //     await this.initialize()
+  //     if (!this.page) throw new Error('Page not initialized')
+
+  //     // 訪問用戶主頁
+  //     await this.page.goto(userUrl)
+  //     
+  //     // 等待文章列表加載
+  //     logger.info('Waiting for user notes to load')
+  //     await this.page.waitForSelector('.feeds-container')
+
+  //     // Get all note items
+  //     let noteItems = await this.page.$$('.feeds-container .note-item')
+  //     logger.info(`Found ${noteItems.length} note items`)
+  //     const notes: Note[] = []
+
+  //     while (notes.length < limit) {
+  //       // Process each note
+  //       for (let i = 0; i < Math.min(noteItems.length, limit); i++) {
+  //         logger.info(`Processing note ${i + 1}/${Math.min(noteItems.length, limit)}`)
+
+  //         try {
+  //           logger.info(noteItems[i])
+  //           // Click on the note cover to open detail
+  //           await noteItems[i].$eval('a.cover.mask.ld', (el: HTMLElement) => el.click())
+
+  //           // Wait for the note page to load
+  //           logger.info('Waiting for note page to load')
+  //           await this.page.waitForSelector('#noteContainer', {
+  //             timeout: 30000
+  //           })
+
+  //           await this.randomDelay(0.5, 1.5)
+
+  //           // Extract note content
+  //           const note_details = await getNoteDetail(this.page) 
+  //           if (note_details) {
+  //             let user_details = await getUserDetailInNotePage(this.page)
+
+  //             let note_images: string[] = []
+  //             if (with_images) {
+  //               note_images = await getNoteImages(note_details.imgs_url || [])
+  //             }
+
+  //             notes.push({
+  //               user_details: user_details,
+  //               note_details: note_details,
+  //               note_images: note_images,
+  //             })
+  //           }
+
+  //           // Add random delay before closing
+  //           await this.randomDelay(1.0, 2.5)
+
+  //           // Close note by clicking the close button
+  //           const closeButton = await this.page.$('.close-circle')
+  //           if (closeButton) {
+  //             logger.info('Closing note dialog')
+  //             await closeButton.click()
+
+  //             // Wait for note dialog to disappear
+  //             await this.page.waitForSelector('#noteContainer', {
+  //               state: 'detached',
+  //               timeout: 30000
+  //             })
+  //           }
+  //         } catch (error) {
+  //           logger.error(`Error processing note ${i + 1}:`, error)
+  //           const closeButton = await this.page.$('.close-circle')
+  //           if (closeButton) {
+  //             logger.info('Attempting to close note dialog after error')
+  //             await closeButton.click()
+
+  //             // Wait for note dialog to disappear
+  //             await this.page.waitForSelector('#noteContainer', {
+  //               state: 'detached',
+  //               timeout: 30000
+  //             })
+  //           }
+  //         } finally {
+  //           // Add random delay before next note
+  //           await this.randomDelay(0.5, 1.5)
+  //         }
+
+  //         if (notes.length >= limit) {
+  //           logger.info('Reached limit of search results')
+  //           break
+  //         }
+  //       } 
+
+  //       // // 滾動到頁面底部以加載更多文章
+  //       // await this.page.evaluate(() => {
+  //       //   window.scrollTo(0, document.body.scrollHeight)
+  //       // })
+
+  //       // // 等待新內容加載
+  //       // await this.page.waitForTimeout(1000)
+
+  //       // // 檢查是否已經到底部
+  //       // const isBottom = await this.page.evaluate(() => {
+  //       //   return window.innerHeight + window.scrollY >= document.body.scrollHeight
+  //       // })
+
+  //       // if (isBottom) {
+  //       //   logger.info('Reached end of user notes')
+  //       //   break
+  //       // }
+  //     }
+
+  //     logger.info(`Successfully retrieved ${notes.length} user notes`)
+  //     return notes
+  //   } catch (error) {
+  //     logger.error('Error getting user notes:', error)
+  //     throw error
+  //   } finally {
+  //     await this.cleanup()
+  //   }
+  // }
 
   async getUserNotes(userUrl: string, limit: number = 10): Promise<NoteDetail[]> {
     logger.info(`Getting user notes for URL: ${userUrl} with limit: ${limit}`)
@@ -782,5 +667,105 @@ export class RedNoteTools {
     const delay = Math.random() * (max - min) + min
     logger.debug(`Adding random delay of ${delay.toFixed(2)} seconds`)
     await new Promise((resolve) => setTimeout(resolve, delay * 1000))
+  }
+
+  private async moveMouseRandomly(page: Page): Promise<void> {
+    logger.info(`Moving mouse randomly`)
+    const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+    const numberOfMoves = Math.random() * (8 - 3) + 3
+    for (let i = 0; i < numberOfMoves; i++) {
+      // 生成随机 X 坐标 (0 到页面宽度之间)
+      const randomX = Math.floor(Math.random() * pageWidth);
+      // 生成随机 Y 坐标 (0 到页面高度之间)
+      const randomY = Math.floor(Math.random() * pageHeight);
+
+      // 使用 page.mouse.move() 模拟鼠标移动
+      // steps 参数可以控制移动的平滑度，增加 steps 会使移动看起来更自然，但会耗费更多时间
+      await page.mouse.move(randomX, randomY, { steps: 5 });
+
+      const delayBetweenMoves = Math.random() * (500 - 100) + 100
+      // 每次移动后添加一个延迟，模拟更真实的鼠标行为
+      await page.waitForTimeout(delayBetweenMoves);
+    }
+  }
+  
+  private async addNoteItemToList(
+      note_titles: NoteTitle[], 
+      noteItem: ElementHandle<Element>): Promise<boolean> {
+    // 搜索结果中有时候会插入别的内容
+    const maskElement = await noteItem.$('a.cover.mask.ld');
+    if (!maskElement) {
+      return false;
+    }
+
+    const note_url = await noteItem.$eval('a.cover.mask.ld', (el: HTMLElement) => el.getAttribute('href'))
+    const note_title = await noteItem.$eval('a.title', (el: HTMLElement) => el.textContent?.trim() || '')
+
+    if (note_url && note_title) {
+      for (let i = 0; i < note_titles.length; i++) {
+        if (note_titles[i].url == note_url) {
+          return false
+        }
+      }
+      note_titles.push({
+        title: note_title,
+        url: note_url,
+      })
+      return true
+    }
+    return false
+  }
+
+  private async getNoteContentInNotePage(
+      page: Page,
+      noteItem: ElementHandle<Element>,
+      with_images: boolean = false): Promise<Note> {
+    // Click on the note cover to open detail
+    await noteItem.$eval('a.cover.mask.ld', (el: HTMLElement) => el.click())
+
+    // Wait for the note page to load
+    logger.info('Waiting for note page to load')
+    await page.waitForSelector('#noteContainer', {
+      timeout: 30000
+    })
+
+    const delay = Math.random() * (1.5 - 0.5) + 1.0
+    await new Promise((resolve) => setTimeout(resolve, delay * 1000))
+
+    // Extract note content
+    const note_details = await getNoteDetail(page)
+    if (!note_details) {
+      throw new Error('Note detail not found')
+    }
+    let user_details = await getUserDetailInNotePage(page)
+
+    let note_images: string[] = []
+    if (with_images) {
+      note_images = await getNoteImages(note_details.imgs_url || [])
+    }
+
+    let note = {
+      user_details: user_details,
+      note_details: note_details,
+      note_images: note_images,
+    } as Note
+
+    await new Promise((resolve) => setTimeout(resolve, delay * 1000))
+
+    // Close note by clicking the close button
+    const closeButton = await page.$('.close-circle')
+    if (closeButton) {
+      logger.info('Closing note dialog')
+      await closeButton.click()
+
+      // Wait for note dialog to disappear
+      await page.waitForSelector('#noteContainer', {
+        state: 'detached',
+        timeout: 30000
+      })
+    }
+
+    return note
   }
 }

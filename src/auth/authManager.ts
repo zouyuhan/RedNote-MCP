@@ -43,11 +43,11 @@ export class AuthManager {
     this.cookieManager = new CookieManager(cookiePath);
   }
 
-  async getBrowser(): Promise<Browser> {
+  async getBrowser(headless: boolean): Promise<Browser> {
     logger.info('Launching browser');
     // 始终创建新的浏览器实例，不复用之前的
     this.browser = await chromium.launch({
-      headless: true,
+      headless: headless,
     });
     return this.browser;
   }
