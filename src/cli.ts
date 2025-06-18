@@ -6,16 +6,23 @@ import { z } from 'zod'
 import { AuthManager } from './auth/authManager'
 import { RedNoteTools } from './tools/rednoteTools'
 import { Note } from './tools/noteDetail'
-import { NoteAction } from './tools/noteAction'
+import { NoteAction, NoteActionIterative } from './tools/noteAction'
 import logger, { LOGS_DIR, packLogs } from './utils/logger'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { createStdioLogger } from './utils/stdioLogger'
+import { RedNoteIterTools } from './tools/rednoteIterTools'
+import { ResultSchema } from '@modelcontextprotocol/sdk/types'
+
+type TextContent = { type: 'text'; text: string;[x: string]: unknown };
+type ImageContent = { type: 'image'; data: string; mimeType: string;[x: string]: unknown };
+type Content = TextContent | ImageContent;
+
 const execAsync = promisify(exec)
 
 const name = 'rednote'
 const description = '抓取小红书的内容的 MCP 服务'
-const version = '0.3.1'
+const version = '0.5.0'
 
 // Create server instance
 const server = new McpServer({
@@ -31,17 +38,13 @@ const server = new McpServer({
   }
 })
 
-function format_note(note: Note[]) {
-  type TextContent = { type: 'text'; text: string; [x:string]: unknown };
-  type ImageContent = { type: 'image'; data: string; mimeType: string; [x: string]: unknown };
-  type Content = TextContent | ImageContent;
-
+function format_note(note: Note[], start_index: number = 1) {
   let result: Content[] = [];
 
   note.forEach((note, i) => {
     const note_head: TextContent = {
       type: 'text',
-      text: `以下是第 ${i + 1} 个笔记内容(JSON格式)和用户信息(JSON格式)`
+      text: `以下是第 ${i + start_index} 个笔记内容(JSON格式)和用户信息(JSON格式)`
     }
     const note_content: TextContent = {
       type: 'text',
@@ -58,7 +61,7 @@ function format_note(note: Note[]) {
       note.note_images.forEach((image, j) => {
         const result_head: TextContent = { // Explicitly type as TextContent
           type: 'text',
-          text: `以下是第 ${i+1} 个笔记第 ${j+1}/${note.note_images?.length || 0} 张图片，内容(base64)如下:`
+          text: `以下是第 ${i + start_index} 个笔记第 ${j + 1}/${note.note_images?.length || 0} 张图片，内容(base64)如下:`
         }
         const result_img: ImageContent = { // Explicitly type as ImageContent
           type: 'image',
@@ -73,6 +76,14 @@ function format_note(note: Note[]) {
   return result
 }
 
+function iteration_prompts() {
+  const note_head: TextContent = {
+    type: 'text',
+    text: '你可以通过 `get_user_notes_iterative` 获取下一条笔记, 也可以通过 `post_note_action_iterative` 为当前笔记进行点赞或评论, 也可以通过 `close_iteration` 关闭迭代器'
+  }
+  return [note_head]
+}
+
 // Register tools
 server.tool(
   'search_notes_and_get_contents',
@@ -84,12 +95,13 @@ server.tool(
     limit: z.number().optional().describe('返回结果数量限制(默认10条）'),
     with_images: z.boolean().optional().describe('是否返回图片内容(Base64)'),
   },
-  async ({ keywords, sort_type = 'default', period = 'all', limit = 10, with_images = false }: { 
-    keywords: string; 
-    sort_type?: string; 
-    period?: string; 
-    limit?: number; 
-    with_images?: boolean }) => {
+  async ({ keywords, sort_type = 'default', period = 'all', limit = 10, with_images = false }: {
+    keywords: string;
+    sort_type?: string;
+    period?: string;
+    limit?: number;
+    with_images?: boolean
+  }) => {
     logger.info(`Searching notes with keywords: ${keywords}, limit: ${limit}`)
     try {
       const tools = new RedNoteTools()
@@ -97,7 +109,7 @@ server.tool(
       logger.info(`Found ${notes.length} notes`)
       const result = format_note(notes)
       return {
-        content: result 
+        content: result
       }
     } catch (error) {
       logger.error('Error searching notes:', error)
@@ -122,7 +134,7 @@ server.tool(
       logger.info(`Found ${notes.length} notes`)
       const result = format_note(notes)
       return {
-        content: result 
+        content: result
       }
     } catch (error) {
       logger.error('Error getting user notes:', error)
@@ -143,7 +155,7 @@ server.tool(
       const tools = new RedNoteTools()
       const note = await tools.getNoteContent(url)
       const result = format_note([note])
-      return {content: result}
+      return { content: result }
     } catch (error) {
       logger.error('Error getting note content:', error)
       throw error
@@ -216,7 +228,7 @@ server.tool(
             }
           ]
         }
-      }      
+      }
     } catch (error) {
       logger.error('Error posting note action list:', error)
       throw error
@@ -224,11 +236,168 @@ server.tool(
   }
 )
 
+server.tool(
+  'init_user_notes_iterative',
+  '初始化迭代器，该迭代器将访问用户的所有笔记',
+  {
+    url: z.string().describe('用戶主頁 URL'),
+  },
+  async ({ url }: { url: string }) => {
+    logger.info(`Getting user notes iteratively for URL: ${url}`)
+    try {
+      const tools = RedNoteIterTools.getInstance()
+
+      const init_success = await tools.initUserNotesIteration(url)
+      if (!init_success) {
+        return {
+          content: [{
+            type: 'text',
+            text: '迭代器初始化失败, 你可以调用 `get_user_notes_iterative` 迭代获取用户的笔记'
+          }]
+        }
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: '迭代器初始化成功。'
+        }]
+      }
+    } catch (error) {
+      logger.error('Error getting user notes:', error)
+      throw error
+    }
+  }
+)
+
+server.tool(
+  'init_search_notes_iterative',
+  '初始化迭代器，该迭代器将访问用户的所有笔记',
+  {
+    keywords: z.string().describe('搜索关键词'),
+    sort_type: z.string().optional().describe('搜索结果排序方式（默认default，可选值为default、most_liked、latest）'),
+    period: z.string().optional().describe('搜索时间范围（默认all，可选值为all、day、week、half_year）'),
+  },
+  async ({ keywords, sort_type = 'default', period = 'all' }: { keywords: string; sort_type?: string; period?: string }) => {
+    logger.info(`Getting search notes iteratively for keywords: ${keywords}, sort_type: ${sort_type}, period: ${period}`)
+    try {
+      const tools = RedNoteIterTools.getInstance()
+
+      const init_success = await tools.initSearchNotesIteration(keywords, sort_type, period)
+      if (!init_success) {
+        return {
+          content: [{
+            type: 'text',
+            text: '迭代器初始化失败，你可以调用 `get_user_notes_iterative` 迭代获取搜索结果中的笔记'
+          }]
+        }
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: '迭代器初始化成功。'
+        }]
+      }
+    } catch (error) {
+      logger.error('Error getting user notes:', error)
+      throw error
+    }
+  }
+)
+
+server.tool(
+  'get_notes_iterative',
+  '以迭代器的方式获取用戶的所有笔记, 返回笔记的文字内容、图片链接、视频链接、点赞人数、收藏人数、评论人数、笔记链接、博主关注的人数、博主被多少人关注、博主的笔记被点赞和收藏次数',
+  {
+  },
+  async ({ }: {}) => {
+    logger.info(`Getting next user notes iteratively`)
+    try {
+      const tools = RedNoteIterTools.getInstance()
+      const note = await tools.getNextNoteIteratively()
+      if (note) {
+        const result = await format_note([note], tools.getNoteCount())
+        return {
+          content: [...result, ...iteration_prompts()]
+        }
+      } else {
+        return {
+          content: [{
+            type: 'text',
+            text: '没有更多笔记了'
+          }]
+        }
+      }
+    } catch (error) {
+      logger.error('Error getting user notes:', error)
+      throw error
+    }
+  }
+)
+
+server.tool(
+  'post_note_action_iterative',
+  '以迭代器的方式，为上一条迭代器返回的笔记进行点赞或评论',
+  {
+    note_action: z.object({
+      action: z.enum(['like', 'comment']).describe('操作类型：like(点赞) 或 comment(评论)'),
+      comment: z.string().optional().describe('评论内容，当 action 为 comment 时必填')
+    }).describe('笔记操作')
+  },
+  async ({ note_action }: { note_action: NoteActionIterative }) => {
+    logger.info(`Posting note action: ${note_action}`)
+    try {
+      const tools = RedNoteIterTools.getInstance()
+
+      const result = await tools.postNoteAction(note_action)
+
+      if (result) {
+        const result_text: TextContent = {
+          type: 'text',
+          text: '笔记操作成功'
+        }
+        return {
+          content: [result_text, ...iteration_prompts()]
+        }
+      } else {
+        const result_text: TextContent = {
+          type: 'text',
+          text: `笔记操作失敗`
+        }
+        return {
+          content: [result_text, ...iteration_prompts()]
+        }
+      }
+    } catch (error) {
+      logger.error('Error posting note action list:', error)
+      throw error
+    }
+  }
+)
+
+server.tool(
+  'close_iteration',
+  '关闭迭代器',
+  {},
+  async () => {
+    logger.info('Closing iteration')
+    const tools = RedNoteIterTools.getInstance()
+    await tools.cleanupIteration()
+    return {
+      content: [{
+        type: 'text',
+        text: '迭代器已关闭'
+      }]
+    }
+  }
+)
+
 // Add login tool
 server.tool(
-  'login', 
-  '登录小红书账号', 
-  {}, 
+  'login',
+  '登录小红书账号',
+  {},
   async () => {
     logger.info('Starting login process')
     const authManager = new AuthManager()

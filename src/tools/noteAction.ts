@@ -8,8 +8,13 @@ export interface NoteAction {
     comment?: string
 }
 
-export async function postNoteAction(page: Page, noteAction: NoteAction): Promise<boolean> {
-    logger.info(`Posting note action: ${noteAction.title} ${noteAction.url} ${noteAction.action} ${noteAction.comment}`)
+export interface NoteActionIterative {
+    action: 'like' | 'comment'
+    comment?: string
+}
+
+export async function postNoteAction(page: Page, action: 'like' | 'comment', comment?: string): Promise<boolean> {
+    logger.info(`Posting note action: ${action} ${comment}`)
 
     await page.waitForSelector('.input-box')
     await page.waitForSelector('.input-box .content-input')
@@ -17,14 +22,14 @@ export async function postNoteAction(page: Page, noteAction: NoteAction): Promis
     const delay = Math.random() * (6.0 - 1.0) + 1.0
     await new Promise((resolve) => setTimeout(resolve, delay * 1000)) 
 
-    if (noteAction.action === 'like') {
+    if (action === 'like') {
         const likeWrapper = page.locator('.input-box .like-wrapper.like-active');
         const useElement = likeWrapper.locator('use');
         const xlinkHrefValue = await useElement.getAttribute('xlink:href');
 
         // 如果已经点赞，则不重复点赞
         if (xlinkHrefValue === '#liked') {
-            logger.info(`Already liked: ${noteAction.title} ${noteAction.url}`)
+            logger.info(`Already liked.`)
             return true
         }
 
@@ -33,7 +38,7 @@ export async function postNoteAction(page: Page, noteAction: NoteAction): Promis
         await page.click(btn_selector)
 
         await new Promise((resolve) => setTimeout(resolve, 2.0 * 1000))
-    } else if (noteAction.action === 'comment') {
+    } else if (action === 'comment' && comment) {
         // 焦点到文本框
         await page.click('.input-box .content-edit .inner span')
         await page.waitForTimeout(500) // 等待一下確保焦點已經設置
@@ -41,7 +46,6 @@ export async function postNoteAction(page: Page, noteAction: NoteAction): Promis
         await page.waitForSelector('.input-box .content-edit .content-input')
         
         // 控制打字时间，模拟打字效果，每秒2-3个字符
-        const comment = noteAction.comment || ''
         for (let i = 0; i < comment.length; i++) {
             await new Promise((resolve) => setTimeout(resolve, 1000 / (Math.random() * (3 - 2) + 2)))
             await page.fill('.input-box .content-input', comment.substring(0, i + 1))
@@ -56,7 +60,7 @@ export async function postNoteAction(page: Page, noteAction: NoteAction): Promis
 
         await new Promise((resolve) => setTimeout(resolve, 2.0 * 1000)) 
     } else {
-        throw new Error(`Invalid action: ${noteAction.action}`)
+        throw new Error(`Invalid action: ${action}`)
     }
 
     return true
